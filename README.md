@@ -46,4 +46,4 @@ Metrics for models trained on original text:
 
 All accuracy and Loss graphs can be found in the **Accuracy_and_Loss_graphs** folder.
 
-**Note:** This project was created as my course project during my Masters' degree at Northeastern University, Seattle, USA. I created this along with my teammates: Sachin Kumar ([@](https://github.com/)), .
+**Note:** This project was created as my course project during my Masters' degree at Northeastern University, Seattle, USA. I created this along with my teammates: Sachin Kumar ([@sachin301194](https://github.com/sachin301194)), .
