@@ -1,0 +1,174 @@
+---
+title: "IE 7275 FFN"
+author: "Tribhuwan Singh"
+date: "4/22/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readr)
+library(keras)
+library(RSNNS)
+library(tensorflow)
+library(ggplot2)
+library(tidyquant)
+library(plotly)
+```
+
+```{r}
+model_data <- read_csv("C:/Users/tribh/JupyterLabNotebooks/model_data.csv")
+```
+
+
+
+```{r}
+set.seed(100)
+ffn_data1 <- as.matrix(model_data[, c(7:13)])
+ffn_data <- normalizeData(ffn_data1, type = "0_1")
+colnames(ffn_data) <- colnames(ffn_data1)
+```
+
+
+```{r}
+set.seed(100)
+ind <- sample(2, nrow(ffn_data), replace = TRUE, prob = c(0.7, 0.3))
+ffn.training <- ffn_data[ind == 1, 1:6]
+ffn.test <- ffn_data[ind == 2, 1:6]
+ffn.trainingtarget <- ffn_data[ind == 1, 7]
+ffn.testtarget <- ffn_data[ind == 2, 7]
+```
+
+
+
+```{r}
+model <- keras_model_sequential()
+
+model %>% layer_dense(units = 128,  input_shape = ncol(ffn.training), batch_size = 32) %>%
+  layer_batch_normalization() %>%
+  layer_dropout(rate = 0.2) %>%
+ layer_dense(units = 64) %>%
+  layer_batch_normalization() %>%
+  layer_dropout(rate = 0.2) %>%
+  layer_dense(units = 32) %>%
+  layer_batch_normalization() %>%
+  layer_dropout(rate = 0.2) %>%
+ layer_dense(units = 1)
+summary(model)
+```
+
+
+```{r}
+model %>% compile(loss = 'mse',
+                  optimizer = 'rmsprop',
+                  metrics = list("mean_absolute_error")
+                   )
+
+```
+
+
+```{r}
+set.seed(100)
+
+history <- model %>% fit(
+  x = ffn.training,
+  y = ffn.trainingtarget,
+  epochs = 100,
+  validation_split = 0.2,
+ callbacks = list(
+  callback_model_checkpoint("best_model.h5", monitor='val_loss', mode='min', verbose=1, save_best_only=TRUE),
+  callback_early_stopping(monitor='val_loss', mode='min', verbose=1, patience=15),
+  callback_reduce_lr_on_plateau(monitor = "val_loss", factor = 0.1)),
+  shuffle = FALSE
+)
+```
+
+
+```{r}
+# load the saved model
+saved_model = load_model_hdf5('best_model.h5') 
+```
+
+
+```{r}
+train_scores = saved_model %>% evaluate(ffn.training, ffn.trainingtarget, verbose = 0)
+print(train_scores)
+```
+
+
+```{r}
+test_scores = saved_model %>% evaluate(ffn.test, ffn.testtarget, verbose = 0)
+print(test_scores)
+```
+
+
+```{r}
+y_pred = saved_model %>% predict(ffn.training)
+x_axes = seq(1:length(y_pred))
+```
+
+
+```{r}
+y_pred <- as.numeric(y_pred)
+ffn.training1 <- as.data.frame(ffn.training)
+ffn.training1$Pred <- y_pred
+```
+
+```{r}
+plot_ly(as.data.frame(ffn.trainingtarget), x = ~x_axes, y = ~as.data.frame(ffn.trainingtarget)[,1], type = "scatter", mode = "markers", color = ~ffn.training1$stars, name = "Actual Data") %>%
+ add_trace(y = ffn.training1$Pred, x = x_axes, name = "FFN Train prediction", mode = "lines") 
+```
+
+```{r}
+y_pred = saved_model %>% predict(ffn.test)
+x_axes = seq(1:length(y_pred)) 
+```
+
+```{r}
+y_pred <- as.numeric(y_pred)
+ffn.test1 <- as.data.frame(ffn.test)
+ffn.test1$Pred <- y_pred
+```
+
+```{r}
+plot_ly(as.data.frame(ffn.testtarget), x = ~x_axes, y = ~as.data.frame(ffn.testtarget)[,1], type = "scatter", mode = "markers", color = ~ffn.test1$stars, name = "Actual Data") %>%
+ add_trace(y = ffn.test1$Pred, x = x_axes, name = "FFN Test prediction", mode = "lines") 
+```
+
+```{r}
+plot(history)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

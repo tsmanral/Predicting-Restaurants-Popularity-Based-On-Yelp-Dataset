@@ -1,0 +1,287 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(mice)
+library(dplyr)
+library(corrplot)
+library(RColorBrewer)
+library(data.table)
+library(ggplot2)
+library(ISLR)
+library(polynom)
+library(locfit)
+library(multipol)
+library(car)
+library(MASS)
+library(leaps)
+library(bootstrap)
+library(orcutt)
+library(hydroGOF)
+library(modelr)
+library(mlbench)
+library(caret)
+
+```
+
+
+#readfile
+```{r}
+ab <- read.csv("model_data.csv")
+head(ab)
+```
+
+```{r}
+# scatterplotMatrix(ab[, 13:19], spread=FALSE, main = "Scatter Plot Matrix")
+ab1 <- ab[, 13:19]
+```
+
+
+
+
+
+
+#
+```{r}
+#starsnorm, countnorm, usefulnorm, funnynorm, coolnorm, creditcardnorm
+hist(ab$weighted_stars)
+boxplot(ab1$weighted_stars~ ab1$starsnorm, data = ab, xlab = "starsnorm", ylab = "weighted_stars area", main = "Airbnb")
+boxplot(ab1$weighted_stars~ ab1$countnorm, data = ab, xlab = "countnorm", ylab = "weighted_stars area", main = "Airbnb")
+boxplot(ab1$weighted_stars~ ab1$usefulnorm, data = ab, xlab = "usefulnorm", ylab = "weighted_stars area", main = "Airbnb")
+boxplot(ab1$weighted_stars~ ab1$funnynorm, data = ab, xlab = "funnynorm", ylab = "weighted_stars area", main = "Airbnb")
+boxplot(ab1$weighted_stars~ ab1$coolnorm, data = ab, xlab = "coolnorm", ylab = "weighted_stars area", main = "Airbnb")
+boxplot(ab1$weighted_stars~ ab1$creditcardnorm, data = ab, xlab = "creditcardnorm", ylab = "weighted_stars area", main = "Airbnb")
+```
+#check for correlations between relevant coefficients
+```{r}
+cor(ab1)
+```
+useful and hunny has a strong corelation of 0.9, we remove funnynorm
+
+
+
+###1. Data normalization
+```{r}
+#create a function
+normalize <- function(x) {
+return ((x - min(x)) / (max(x) - min(x)))
+}
+#normalize
+ab$starsnorm<-normalize(ab$stars)
+ab$countnorm<-normalize(ab$count)
+ab$usefulnorm<-normalize(ab$useful)
+ab$funnynorm<-normalize(ab$funny)
+ab$coolnorm<-normalize(ab$cool)
+ab$creditcardnorm<-normalize(ab$attributes.BusinessAcceptsCreditCards)
+head(ab)
+```
+
+### 2. Create a scatterplot matrix of “Forest Fire Data” and select an initial set of predictor variables.
+
+
+input feature: starsnorm, countnorm, usefulnorm, funnynorm, coolnorm, creditcardnorm
+output: weighted_stars
+
+#data split with 70% train and 30% validation
+
+```{r}
+set.seed(100)
+train.index <- sample(c(1:dim(ab1)[1]), dim(ab1)[1]*0.7)
+train1 <- ab1[train.index, ]
+test1 <- ab1[-train.index, ]
+```
+
+
+### 2. Build a few potential regression models 
+
+### 2a: Multiple Linear Regression Model
+
+```{r}
+fitt1 <- lm(weighted_stars ~ starsnorm+countnorm+usefulnorm+coolnorm+ creditcardnorm, data = train1)
+summary(fitt1)
+```
+
+In this model, we consider no interact between predictors thus the model doesn't look any good.
+
+### 2b: Polynomial Regression Model
+
+```{r}
+# fit3 <- lm(weighted_stars ~ (starsnorm+countnorm+usefulnorm+coolnorm + creditcardnorm)^2, data = ab)
+fitt2 <- lm(weighted_stars ~ (starsnorm+countnorm+usefulnorm+coolnorm)^2 + creditcardnorm, data = train1)
+summary(fitt2)
+
+# summary(fit3)
+```
+since no difference between fit3 and fit2, we choose fit2 which has less degree of freedom to avoid overfitting
+
+The residual standard error has been decreased compared to simple multilinear model.
+
+
+
+
+### 3. Perform regression diagnostics using both typical approach and enhanced approach.
+
+### 3a: Regression diagnostics with typical approach
+
+
+```{r}
+par(mfrow = c(2,2))
+plot(fitt2)
+```
+Normality: upper right, all data fitted around the 45-degree line, its satisfied.
+Independence: can not tell
+Homoscedasticity: bottom left,random band around the horizantal line, satisfied
+From the Scale-Location graph, we can see the points is a random band around a horizontal line. The assumption is met.
+From the top left graph, there is no systematic relationship between the residual and predicted values, so the linearity assumption is satisfied.
+
+
+### 3b: Regression diagnostics with enhanced approach
+
+#### Normality
+    
+```{r}
+qqPlot(fitt2, labels = row.names(fire), id.method = "identify", simulate = TRUE, main = "Q-Q Plot")
+```
+
+We can observe that the points fall close to the line but few points are outside the confidence interval, which means the normality assuption doesn't meet very well.
+
+
+#### Independence
+
+```{r}
+durbinWatsonTest(fitt2)
+cochrane.orcutt(fitt1, convergence = 8, max.iter=100)
+cochrane.orcutt(fitt2, convergence = 8, max.iter=100)
+```
+
+p-value is 0.5 suggests a lack of autocorrelation
+
+
+#### Linearity
+
+```{r}
+#take a while to run
+crPlots(fitt1)
+```
+
+The Component plus residual confirms that we've met the linearity assumption. 
+
+#### Homoscedasticity
+
+```{r}
+ncvTest(fitt2)
+spreadLevelPlot(fitt2)
+```
+### 4. Identify unusual observations and take corrective measures.
+
+```{r}
+outlierTest(fitt2)
+```
+
+No Outlier
+
+#### High leverage points 
+
+```{r}
+hat.plot<-function(fitt2) {
+  p<-length(coefficients(fitt2))
+  n<-length(fitted(fitt2))
+  plot(hatvalues(fitt2), main="Index Plot of Hat Values")
+  abline(h=c(2,3)*p/n,col="red", lty=2)
+  identify(1:n,hatvalues(fitt2), names(hatvalues(fitt2)))
+}
+hat.plot(fitt2)
+```
+
+We have27 outliers above the red line.
+
+#### Influential observation
+
+```{r}
+cutoff<-4/(nrow(fire)-length(fitt2$coefficients)-2)
+plot(fitt2,which=4,cook.levels=cutoff)
+abline(h=cutoff,lty=2,col="red")
+```
+
+There are three influential observations (15948, 40082, 48333)
+
+#### Corrective measures
+  
+
+  
+```{r}
+anova(fitt1, fitt2)
+```
+
+Since the p value is smaller than 0.05, so the new model add linear predicion and we will accept this model.
+
+
+#### Backward stepwise selection
+
+```{r}
+stepAIC(fitt1,direction = "backward")
+```
+```{r}
+stepAIC(fitt2,direction = "backward")
+```
+
+#### All subsets selection
+
+```{r}
+leaps <- regsubsets(weighted_stars ~ starsnorm+ countnorm+ usefulnorm+ funnynorm+ coolnorm+ creditcardnorm, data = train1, nbest = 9)
+plot(leaps, scale = "adjr2")
+```
+
+ 
+
+
+### 6. Fine tune the selection of predictor variables.
+
+```{r}
+fitt2 <- step(fitt2, direction = "backward")
+summary(fitt2)
+```
+The model is: weight_stars= 1.19+ (3.81)starsnorm + (1.20)countnorm + (-6.35)usefulnorm + (3.05)coolnorm + (-2.38)starsnorm:countnorm + (4.62)starsnorm:usefulnorm + (-3.45)starsnorm:coolnorm + (-9.80)countnorm:usefulnorm + (3.24)countnorm:coolnorm + (2.80)usefulnorm:coolnorm
+
+
+
+```{r}
+fitt3 <- lm(weighted_stars ~ (starsnorm+countnorm+usefulnorm+coolnorm)^3 + creditcardnorm,data = train1)
+summary(fitt3)
+```
+```{r}
+fitt3 <- step(fitt2, direction = "backward")
+summary(fitt2)
+```
+#MAE check performance
+```{r}
+
+data.frame(
+  R2 = rsquare(fitt3, data = test1),
+  RMSE = rmse(fitt3, data = test1),
+  MAE = mae(fitt3, data = test1),
+  MSE =mse(fitt3, data = test1)
+)
+
+data.frame(
+  R2 = rsquare(fitt3, data = train1),
+  RMSE = rmse(fitt3, data = train1),
+  MAE = mae(fitt3, data = train1),
+  MSE =mse(fitt3, data = train1)
+)
+
+
+
+```
+
+```{r}
+MSE(y_pred = exp(fitt3$fitted.values), y_true = cars$dist)
+```
+
