@@ -1,4 +1,14 @@
-# Predicting Restaurants’ Popularity Based On Yelp Dataset
+<h1 align="center"> Predicting Restaurants’ Popularity Based On Yelp DatasetI </h1>
+
+<p align="center">
+<a href="https://tsmanral.github.io/" target="_blank"><img alt="Website" src="https://img.shields.io/badge/-Portfolio-informational"></a>
+<a href="https://twitter.com/tribhuwan50" target="_blank"><img alt="Twitter" src="https://img.shields.io/twitter/follow/tribhuwan50.svg?style=social&label=Follow"></a>
+<a href="https://www.linkedin.com/in/tribhuwan-singh-9411a175/" target="_blank"><img alt="LinkedIn" src="https://img.shields.io/badge/-Connect-blue?style=flat&logo=linkedin"></a>
+<a href="https://github.com/tsmanral" target="_blank"><img alt="Github" src="https://img.shields.io/github/followers/tsmanral.svg?style=social"></a>
+</p>
+
+
+
 The project is aimed at the creation and analysis of multiple deep learning models for the task to predict the popularity of local businesses based on the actual star rating (which we'll calculate with true score) and the textual review given by a user, in order to carry out a quantitative comparison of the performance accuracies of these models and ascertain the optimal model for this task.
 
 The project applies deep learning and Natural Language Processing methodologies. We also make use of sentiment analyis at pre-processing step thus, to make model training faster. TextBlob is used to convert the original text into its corresponding grammatical structure called Parts of Speech (POS). Once all these factors are evaluated, the stars are then weighted average with weights as the subjectivity scores grouped as business. Thus, for each business we get the weighted_star rating along with the number of reviews as count and total upvotes for all the grouped reviews as funny, cool, and useful. The weighted_stars are plotted in the bar plot below where most of
