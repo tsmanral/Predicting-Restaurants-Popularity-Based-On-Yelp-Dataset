@@ -1,4 +1,4 @@
-<h1 align="center"> Predicting Restaurants’ Popularity Based On Yelp DatasetI </h1>
+<h1 align="center"> Predicting Restaurants’ Popularity Based On Yelp Dataset </h1>
 
 <p align="center">
 <a href="https://tsmanral.github.io/" target="_blank"><img alt="Website" src="https://img.shields.io/badge/-Portfolio-informational"></a>
